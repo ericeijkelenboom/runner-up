@@ -1,0 +1,35 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html lang="en">
+  <body>
+    <h3>Currently available food items</h3>
+    <p>
+        <table style="width:50%">
+            <tr style="font-weight:bold"><td>Name</td><td>Number of kilo calories</td></tr>    
+            {% for fooditem in fooditems %}
+                <tr>
+                    <td>{{ fooditem.name }}</td>
+                    <td>{{fooditem.kcals}}</td>
+                    <td>
+                        <form action="/foodupdater" method="post">
+                          <div><input type="submit" value="Delete"></div>
+                          <input type="hidden" name="action" value="delete"/>
+                        </form>         
+                    </td>
+                </tr>
+            {% endfor %}
+        </table>
+    </p>
+  
+    <br><br>
+    
+    <p>
+        <h3>Add a new food item</h3>
+        <form action="/foodupdater" method="post">
+          <div>Name: <input type="text" name="fooditem_name" size="50"/></div>
+          <div>Number of Kilo Calories: <input type="text" name="fooditem_kcals" size="5"/></div>
+          <input type="hidden" name="action" value="add"/>
+          <div><input type="submit" value="Add!"></div>
+        </form>
+    </p>
+  </body>
+</html>

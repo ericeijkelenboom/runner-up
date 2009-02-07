@@ -1,0 +1,240 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+    <title>Runner-UP</title>
+    
+	<style type="text/css">
+	  @import url("http://www.google.com/uds/css/gsearch.css");
+	  @import url("http://www.google.com/uds/solutions/localsearch/gmlocalsearch.css");
+	</style>
+	
+	<script src="http://maps.google.com/maps?file=api&amp;v=2&amp;key=ABQIAAAAs6H39exXc0c4AL0niyiOpRSF8nUD60A0leZcjynNwwPBVH5EHBSMh2_mQneLET84zgDYhLjH4Es3Hw" type="text/javascript"></script>
+	<script src="http://www.google.com/uds/api?file=uds.js&v=1.0&key=ABQIAAAAs6H39exXc0c4AL0niyiOpRSF8nUD60A0leZcjynNwwPBVH5EHBSMh2_mQneLET84zgDYhLjH4Es3Hw" type="text/javascript"></script>
+	<script src="http://www.google.com/uds/solutions/localsearch/gmlocalsearch.js" type="text/javascript"></script>
+	<script src="js/prototype.js" type="text/javascript"></script>
+    
+	<script type="text/javascript">
+    //<![CDATA[
+  
+	function RunnerUp() {    
+	  this.mainAddress = "Mosevej 34, Ballerup, Denmark"; 
+	  this.route; // GPolyLine, will contain the route
+	  this.routeLength = 0; // In meters
+	  this.geocoder = new GClientGeocoder();		
+	  this.map = new GMap2($('map'));
+	  this.map.addControl(new GLargeMapControl());
+	  this.map.addControl(new GMapTypeControl());
+	  this.map.addControl(new google.maps.LocalSearch(), new GControlPosition(G_ANCHOR_BOTTOM_RIGHT, new GSize(10,20)));
+	  this.map.setMapType(G_HYBRID_MAP);
+
+	  GEvent.bind(this.map, "click", this, this.mapClicked);
+	  this.navigateToAddress(this.mainAddress);
+	}
+	
+	// Set center of map to specified address
+	RunnerUp.prototype.navigateToAddress = function(address) {
+	  if (this.geocoder) {
+		tmp = this.map;
+		this.geocoder.getLatLng(address, function(point) {
+			if (!point) {
+			  alert(address + " not found");
+			} else {
+			  tmp.setCenter(point, 15);
+			}
+		  }
+		);
+	  }
+	}
+	
+	RunnerUp.prototype.mapClicked = function(overlay, latLng) {
+	  this.expandRoute(latLng);
+	}
+	
+	// Given a LatLng, create the corresponding piece of the route
+	RunnerUp.prototype.expandRoute= function(latLng) {     
+	  if (latLng) {
+		if(!this.route) {
+		  // Route start
+		  this.route = new GPolyline([latLng], "#0000ff", 3);
+		  this.map.addOverlay(new GMarker(latLng));
+		  this.map.addOverlay(this.route);
+		} else {
+		  // Update route length
+		  previousVertex = this.route.getVertex(this.route.getVertexCount() - 1);
+		  this.routeLength += latLng.distanceFrom(previousVertex);
+		  
+		  // Add new vertex to route
+		  this.route.insertVertex(this.route.getVertexCount(), latLng);
+		}
+		
+		this.updateDistance();
+		this.updateCalories();
+		this.updateFoodStats();
+	  }
+	}
+	
+	RunnerUp.prototype.updateDistance = function() {
+	  if(this.routeLength == 0)
+		$('distance').innerHTML = "0 km.";
+	  else {
+		lengthInKm = ((this.routeLength / 1000) + "").match(/(\d+\.\d\d)/);
+		if(lengthInKm && lengthInKm.length > 0) {
+		  $('distance').innerHTML = lengthInKm[0] + " km.";
+		}
+	  }
+	}
+	
+	RunnerUp.prototype.updateFoodStats = function() {
+	  calories = this.computeCalories();
+	  {% for fooditem in fooditems %}
+		fooditem_{{forloop.counter}} = Math.round((calories / {{fooditem.kcals}}) * 10) / 10;
+		$('nr_of_{{fooditem.name}}').innerHTML = fooditem_{{forloop.counter}};
+	  {% endfor %}
+	}
+	
+	RunnerUp.prototype.updateCalories = function() {
+	  calories = this.computeCalories();
+	  $('kcal').innerHTML = calories + " kCal.";
+	}
+	
+	RunnerUp.prototype.computeCalories = function() {
+	  weight = ($('weight').value && $('weight').value != '0') ? $('weight').value : 0;
+	  length = Math.round(this.routeLength);
+	  km = length/1000;
+	  kcal = (km * weight);
+	  return Math.round(kcal);
+	}
+	
+	RunnerUp.prototype.saveRoute = function() {
+	  routename = $('routename').value;
+	  
+	  if(!routename || routename.length == 0) {
+		alert("Please define a name for this route");
+	  } else if(this.routeLength == 0) {
+		alert("Please draw a route first");
+	  } else {
+		// Create array of route vertices
+		latLngArray = new Array();
+		for(i = 0; i < this.route.getVertexCount(); i++) {
+		  vertex = this.route.getVertex(i);
+		  latLngArray.push(vertex.toUrlValue());  
+		}
+		
+		jsonifiedRoute = latLngArray.toJSON();
+		
+		new Ajax.Request('/routemanager', {
+		  method: 'post',
+		  parameters: {route: jsonifiedRoute, name: routename, action: 'save'},
+		  onSuccess:  function(transport, json) {
+						alert("Route " + routename + " saved!");
+					  },
+		});
+	  }
+	}
+	
+	RunnerUp.prototype.processLoadedRoute = function(transport, json) {
+	  response = null;
+	  
+	  try {
+		response = transport.responseText.evalJSON();	  
+	  } catch (e) {
+		$('routeresult').innerHTML = "Error while loading route :(";
+		return;
+	  }
+	  
+	  if(response.error.length > 0) {
+		//console.log('Error: ' + response.error);
+		$('routeresult').innerHTML = response.error;
+	  }
+	  else {
+		runnerUp.clearRoute();
+		
+		for(i = 0; i < response.vertices.length; i++) {
+		  runnerUp.expandRoute(new GLatLng(response.vertices[i].lat, response.vertices[i].lng));
+		}
+		
+		$('routeresult').innerHTML = "Successfully loaded route '" + response.routename + "'";
+	  }
+	}
+	
+	RunnerUp.prototype.loadRoute = function(routename) {
+	  new Ajax.Request('/routemanager', {
+		  method: 'get',
+		  parameters: {routename: 'test'},
+		  onSuccess: this.processLoadedRoute,
+		});
+	}
+	
+	RunnerUp.prototype.clearRoute = function() {
+	  this.route = undefined;
+	  this.routeLength = 0;
+	  this.map.clearOverlays();
+	  this.updateDistance();
+	  this.updateCalories();
+	  this.updateFoodStats();
+	}
+	
+	/* Entry point */
+	var runnerUp;
+	function initialize() {
+	  if (GBrowserIsCompatible()) {
+		runnerUp = new RunnerUp();
+	  }
+	}
+    //]]>
+    </script>
+  </head>
+
+  <body onload="initialize()" onunload="GUnload()">
+
+  
+  <div id="maincontainer" style="width:1000px">
+	<h3>Route planner</h3>
+  
+	<div id="mapcontainer" style="width:800px; float:left">
+	  <div id="map" style="width: 800px; height: 500px"></div>
+	</div>
+	
+	<div id="loadsavecontainer" style="width: 198px; float:right">
+	  <input type="button" value="Clear route" onclick="runnerUp.clearRoute()"/>
+	  <br>
+	  <input type="button" value="Save route" onclick="runnerUp.saveRoute()"/>
+	  <input id="routename" type="text" size="40">
+	  <br>
+	  <input type="button" value="Load route" onclick="runnerUp.loadRoute()"/>
+	  <div id="routeresult" style="position:relative">&nbsp;</div>
+	</div>
+	
+	<div id="statscontainer" style="width:800px; float:left">
+	  <table style="width:100%; border:1px solid black; font-weight:bold">
+		<tr>
+		  <td>Distance: <div id="distance">0 km.</td>
+		  <td>Calories: <div id="kcal" style="float:left">0 kCal.</div></td>
+		  <td style="text-align:right">Weigth (kg): <input id="weight" type="text" size="3" value="70" onchange="runnerUp.updateCalories(); runnerUp.updateFoodStats()"/></td>
+		</tr>
+	  </table>
+	</div>
+  
+	<br>
+	
+	<div id="foods_container" style="width:800px; float:left">
+	  <h3>Food statistics</h3>
+	  <table style="width:100%">
+		{% for fooditem in fooditems %}
+		<tr>
+		  <td>
+			<div style="float:left">This route burns&nbsp;</div>
+			<div style="float:left; font-weight:bold" id="nr_of_{{fooditem.name}}">0</div>
+			<div style="float:left; font-weight:bold">&nbsp;{{fooditem.name}}s</div>
+		  </td>
+		</tr>
+		{% endfor %}
+	</table>
+	</div>
+  
+  </div>
+  
+  </body>
+</html>
