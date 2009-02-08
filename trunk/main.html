@@ -36,7 +36,7 @@
 	// Set center of map to specified address
 	RunnerUp.prototype.navigateToAddress = function(address) {
 	  if (this.geocoder) {
-		tmp = this.map;
+		var tmp = this.map;
 		this.geocoder.getLatLng(address, function(point) {
 			if (!point) {
 			  alert(address + " not found");
@@ -62,7 +62,7 @@
 		  this.map.addOverlay(this.route);
 		} else {
 		  // Update route length
-		  previousVertex = this.route.getVertex(this.route.getVertexCount() - 1);
+		  var previousVertex = this.route.getVertex(this.route.getVertexCount() - 1);
 		  this.routeLength += latLng.distanceFrom(previousVertex);
 		  
 		  // Add new vertex to route
@@ -79,7 +79,7 @@
 	  if(this.routeLength == 0)
 		$('distance').innerHTML = "0 km.";
 	  else {
-		lengthInKm = ((this.routeLength / 1000) + "").match(/(\d+\.\d\d)/);
+		var lengthInKm = ((this.routeLength / 1000) + "").match(/(\d+\.\d\d)/);
 		if(lengthInKm && lengthInKm.length > 0) {
 		  $('distance').innerHTML = lengthInKm[0] + " km.";
 		}
@@ -87,7 +87,7 @@
 	}
 	
 	RunnerUp.prototype.updateFoodStats = function() {
-	  calories = this.computeCalories();
+	  var calories = this.computeCalories();
 	  {% for fooditem in fooditems %}
 		fooditem_{{forloop.counter}} = Math.round((calories / {{fooditem.kcals}}) * 10) / 10;
 		$('nr_of_{{fooditem.name}}').innerHTML = fooditem_{{forloop.counter}};
@@ -95,20 +95,20 @@
 	}
 	
 	RunnerUp.prototype.updateCalories = function() {
-	  calories = this.computeCalories();
+	  var calories = this.computeCalories();
 	  $('kcal').innerHTML = calories + " kCal.";
 	}
 	
 	RunnerUp.prototype.computeCalories = function() {
-	  weight = ($('weight').value && $('weight').value != '0') ? $('weight').value : 0;
-	  length = Math.round(this.routeLength);
-	  km = length/1000;
-	  kcal = (km * weight);
+	  var weight = ($('weight').value && $('weight').value != '0') ? $('weight').value : 0;
+      var length = Math.round(this.routeLength);
+	  var km = length/1000;
+	  var kcal = (km * weight);
 	  return Math.round(kcal);
 	}
 	
 	RunnerUp.prototype.saveRoute = function() {
-	  routename = $('routename').value;
+	  var routename = $('routename').value;
 	  
 	  if(!routename || routename.length == 0) {
 		alert("Please define a name for this route");
@@ -116,23 +116,25 @@
 		alert("Please draw a route first");
 	  } else {
 		// Create array of route vertices
-		latLngArray = new Array();
+		var latLngArray = new Array();
 		for(i = 0; i < this.route.getVertexCount(); i++) {
-		  vertex = this.route.getVertex(i);
+		  var vertex = this.route.getVertex(i);
 		  latLngArray.push(vertex.toUrlValue());  
 		}
 		
-		jsonifiedRoute = latLngArray.toJSON();
+		var jsonifiedRoute = latLngArray.toJSON();
 		
 		new Ajax.Request('/routemanager', {
 		  method: 'post',
 		  parameters: {route: jsonifiedRoute, name: routename, action: 'save'},
-		  onSuccess:  function(transport, json) {
-						alert("Route " + routename + " saved!");
-					  },
-		});
-	  }
+          parameters: 'route=' + jsonifiedRoute + '&name=' + routename + '&action=save',
+		  onSuccess: function(transport, json) {
+						alert("Route saved!");
+					 }
+		});  
+	  } 
 	}
+    
 	
 	RunnerUp.prototype.processLoadedRoute = function(transport, json) {
 	  response = null;
@@ -163,8 +165,8 @@
 	  new Ajax.Request('/routemanager', {
 		  method: 'get',
 		  parameters: {routename: 'test'},
-		  onSuccess: this.processLoadedRoute,
-		});
+		  onSuccess: this.processLoadedRoute
+		}); 
 	}
 	
 	RunnerUp.prototype.clearRoute = function() {
@@ -175,7 +177,7 @@
 	  this.updateCalories();
 	  this.updateFoodStats();
 	}
-	
+	 
 	/* Entry point */
 	var runnerUp;
 	function initialize() {
