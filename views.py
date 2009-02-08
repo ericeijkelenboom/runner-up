@@ -40,6 +40,12 @@ class RouteManager(webapp.RequestHandler):
     def post(self):
       if(self.request.get('action') == 'save'):
         routename = self.request.get('name')
+        
+        routes = Route.gql("WHERE name = :1", routename).fetch(1)
+        if len(routes) > 0:
+            self.response.out.write('Route %s already exists.' % routename)
+            return
+            
         json_route = simplejson.loads(self.request.get('route'))
         logging.info('JSON route = %s', json_route)
         
@@ -59,11 +65,14 @@ class RouteManager(webapp.RequestHandler):
             vertex.put()
             logging.info('Inserted vertex %s, %s on route %s with id %s', vertex.lat, vertex.lng, vertex.route.name, vertex.key())
         
-        self.redirect('/')
+        self.response.out.write('Success')
 
     def get(self):
-      routename = cgi.escape(self.request.get('routename'))
-      if(len(routename) > 0):
+      action = cgi.escape(self.request.get('action'))
+      logging.info('RouteManager - GET. Action parameter: %s', action)
+      
+      if(action == 'load'):
+        routename = cgi.escape(self.request.get('routename'))
         error_msg = ''
         
         routes = Route.gql("WHERE name = :1", routename).fetch(1)
@@ -88,9 +97,20 @@ class RouteManager(webapp.RequestHandler):
         #self.response.out.write(template.render(path, template_values))
         
         self.response.out.write(simplejson.dumps(result))
-
       
+      elif action == 'allnames':
+        logging.info('YEAH BITCH!')
         
+        result = []
+        
+        routes = Route.all()
+        
+        logging.info("Routes %s", routes);
+        for route in routes:
+          logging.info('Found route name %s', route.name);
+          result.append(route.name)
+      
+        self.response.out.write(simplejson.dumps(result))
         
         
         

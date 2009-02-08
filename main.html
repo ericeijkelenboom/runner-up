@@ -129,7 +129,11 @@
 		  parameters: {route: jsonifiedRoute, name: routename, action: 'save'},
           parameters: 'route=' + jsonifiedRoute + '&name=' + routename + '&action=save',
 		  onSuccess: function(transport, json) {
-						alert("Route saved!");
+						if(transport.responseText.match('Success'))
+                            alert("Route " + routename + " saved!");
+                        else {
+                            alert("Error saving route: " + transport.responseText);
+                        }
 					 }
 		});  
 	  } 
@@ -164,11 +168,33 @@
 	RunnerUp.prototype.loadRoute = function(routename) {
 	  new Ajax.Request('/routemanager', {
 		  method: 'get',
-		  parameters: {routename: 'test'},
+		  parameters: {action: 'load', routename: 'test'},
 		  onSuccess: this.processLoadedRoute
 		}); 
 	}
 	
+    RunnerUp.prototype.loadExistingRouteNames = function() {
+        new Ajax.Request('/routemanager', {
+		  method: 'get',
+		  parameters: {action: 'allnames'},
+		  onSuccess: function(transport, json) {
+                         response = null; 
+                         try {
+                            response = transport.responseText.evalJSON();	  
+                         } catch (e) {
+                            reponse = 'Error';
+                         }
+                         
+                         alert(response);
+                         
+                         for(var i = 0; i < response.length; i++) {
+                            var routename = reponse[i];
+                            
+                         }
+                     }
+		});
+    }
+    
 	RunnerUp.prototype.clearRoute = function() {
 	  this.route = undefined;
 	  this.routeLength = 0;
@@ -183,6 +209,7 @@
 	function initialize() {
 	  if (GBrowserIsCompatible()) {
 		runnerUp = new RunnerUp();
+        runnerUp.loadExistingRouteNames();
 	  }
 	}
     //]]>
@@ -206,6 +233,7 @@
 	  <input id="routename" type="text" size="40">
 	  <br>
 	  <input type="button" value="Load route" onclick="runnerUp.loadRoute()"/>
+      <select id="existingroutes"></select>
 	  <div id="routeresult" style="position:relative">&nbsp;</div>
 	</div>
 	
