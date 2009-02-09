@@ -129,10 +129,12 @@
 		  parameters: {route: jsonifiedRoute, name: routename, action: 'save'},
           parameters: 'route=' + jsonifiedRoute + '&name=' + routename + '&action=save',
 		  onSuccess: function(transport, json) {
-						if(transport.responseText.match('Success'))
-                            alert("Route " + routename + " saved!");
+						if(transport.responseText.match('Success')) {
+                            $('routeresult').innerHTML = "Route " + routename + " saved!";
+                            $('existingroutes').insert('<option>' + routename + '</option>').selectedIndex = 0;  
+                        }
                         else {
-                            alert("Error saving route: " + transport.responseText);
+                            $('routeresult').innerHTML = "Error saving route: " + transport.responseText;
                         }
 					 }
 		});  
@@ -141,55 +143,51 @@
     
 	
 	RunnerUp.prototype.processLoadedRoute = function(transport, json) {
-	  response = null;
+	  var response = null;
 	  
 	  try {
 		response = transport.responseText.evalJSON();	  
 	  } catch (e) {
-		$('routeresult').innerHTML = "Error while loading route :(";
+		$('routeresult').innerHTML = "Error while loading route: " + transport.responseText;
 		return;
 	  }
-	  
-	  if(response.error.length > 0) {
-		//console.log('Error: ' + response.error);
-		$('routeresult').innerHTML = response.error;
+      runnerUp.clearRoute();
+	
+	  for(i = 0; i < response.vertices.length; i++) {
+	    runnerUp.expandRoute(new GLatLng(response.vertices[i].lat, response.vertices[i].lng));
 	  }
-	  else {
-		runnerUp.clearRoute();
-		
-		for(i = 0; i < response.vertices.length; i++) {
-		  runnerUp.expandRoute(new GLatLng(response.vertices[i].lat, response.vertices[i].lng));
-		}
-		
-		$('routeresult').innerHTML = "Successfully loaded route '" + response.routename + "'";
-	  }
+	
+	  $('routeresult').innerHTML = "Successfully loaded route '" + response.routename + "'";
 	}
 	
-	RunnerUp.prototype.loadRoute = function(routename) {
+	RunnerUp.prototype.loadRoute = function() {
+      routeselector = $('existingroutes');
+      if(routeselector.selectedIndex == 0)
+        return;
+        
+	  var routename = routeselector[routeselector.selectedIndex].value;
+
 	  new Ajax.Request('/routemanager', {
 		  method: 'get',
-		  parameters: {action: 'load', routename: 'test'},
+		  parameters: {action: 'load', routename: routename},
 		  onSuccess: this.processLoadedRoute
 		}); 
 	}
 	
-    RunnerUp.prototype.loadExistingRouteNames = function() {
+    loadExistingRouteNames = function() {
         new Ajax.Request('/routemanager', {
 		  method: 'get',
 		  parameters: {action: 'allnames'},
 		  onSuccess: function(transport, json) {
-                         response = null; 
+                         var response = null; 
                          try {
                             response = transport.responseText.evalJSON();	  
                          } catch (e) {
                             reponse = 'Error';
                          }
-                         
-                         alert(response);
-                         
-                         for(var i = 0; i < response.length; i++) {
-                            var routename = reponse[i];
-                            
+                      
+                         for(i = 0; i < response.length; i++) {
+                            $('existingroutes').insert('<option>' + response[i] + '</option>').selectedIndex = 0;                       
                          }
                      }
 		});
@@ -209,7 +207,7 @@
 	function initialize() {
 	  if (GBrowserIsCompatible()) {
 		runnerUp = new RunnerUp();
-        runnerUp.loadExistingRouteNames();
+		loadExistingRouteNames();
 	  }
 	}
     //]]>
@@ -233,7 +231,7 @@
 	  <input id="routename" type="text" size="40">
 	  <br>
 	  <input type="button" value="Load route" onclick="runnerUp.loadRoute()"/>
-      <select id="existingroutes"></select>
+      <select id="existingroutes"><option selected="true">-- Select a route --</option></select>
 	  <div id="routeresult" style="position:relative">&nbsp;</div>
 	</div>
 	

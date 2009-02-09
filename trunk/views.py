@@ -8,6 +8,7 @@ from models import FoodItem
 from models import Route
 from models import Vertex
 from django.utils import simplejson
+from google.appengine.ext import db
 
 class MainPage(webapp.RequestHandler):
   def get(self):
@@ -69,16 +70,15 @@ class RouteManager(webapp.RequestHandler):
 
     def get(self):
       action = cgi.escape(self.request.get('action'))
-      logging.info('RouteManager - GET. Action parameter: %s', action)
       
       if(action == 'load'):
         routename = cgi.escape(self.request.get('routename'))
-        error_msg = ''
         
         routes = Route.gql("WHERE name = :1", routename).fetch(1)
         
         if(len(routes) == 0):
-          error_msg = "No route with name %s" % routename
+          self.response.out.write("No route with name %s" % routename)
+          return
         
         route = routes[0];
         
@@ -89,24 +89,14 @@ class RouteManager(webapp.RequestHandler):
           vertices.append({'lat': vertex.lat, 'lng': vertex.lng})
           logging.info('Loaded vertex with lat %s and lng %s', vertex.lat, vertex.lng)
         
-        result = {'error': error_msg, 'vertices': vertices, 'routename': routename };
-        
-        #result = { 'vertices': vertices, 'error_msg': error_msg }
-        #template_values = { 'result': result }
-        #path = os.path.join(os.path.dirname(__file__), 'buildroute.html')
-        #self.response.out.write(template.render(path, template_values))
+        result = {'vertices': vertices, 'routename': routename };
         
         self.response.out.write(simplejson.dumps(result))
       
-      elif action == 'allnames':
-        logging.info('YEAH BITCH!')
-        
+      elif action == 'allnames':        
         result = []
         
-        routes = Route.all()
-        
-        logging.info("Routes %s", routes);
-        for route in routes:
+        for route in Route.all():
           logging.info('Found route name %s', route.name);
           result.append(route.name)
       
