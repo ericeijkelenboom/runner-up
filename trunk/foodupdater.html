@@ -3,21 +3,22 @@
   <body>
     <h3>Currently available food items</h3>
     <p>
+        <form action="/foodupdater" method="post">
         <table style="width:50%">
             <tr style="font-weight:bold"><td>Name</td><td>Number of kilo calories</td></tr>    
             {% for fooditem in fooditems %}
                 <tr>
                     <td>{{ fooditem.name }}</td>
-                    <td>{{fooditem.kcals}}</td>
+                    <td>{{ fooditem.kcals }}</td>
                     <td>
-                        <form action="/foodupdater" method="post">
-                          <div><input type="submit" value="Delete"></div>
-                          <input type="hidden" name="action" value="delete"/>
-                        </form>         
+                        <div><input type="submit" value="Delete"></div>
+                        <input type="hidden" name="action" value="delete"/>
+                        <input type="hidden" name="fooditemkey" value="{{fooditem.key}}"/> 
                     </td>
                 </tr>
             {% endfor %}
         </table>
+        </form>         
     </p>
   
     <br><br>
@@ -31,5 +32,7 @@
           <div><input type="submit" value="Add!"></div>
         </form>
     </p>
+    
+    <div style="padding-top:30px"><a href="/">Back</a></div>
   </body>
 </html>

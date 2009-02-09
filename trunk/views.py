@@ -1,14 +1,15 @@
 import cgi
-from google.appengine.ext import webapp
-from google.appengine.ext.webapp.util import run_wsgi_app
 import os
 import logging
+from google.appengine.ext import webapp
+from google.appengine.ext.webapp.util import run_wsgi_app
 from google.appengine.ext.webapp import template
+from google.appengine.ext import db
 from models import FoodItem
 from models import Route
 from models import Vertex
 from django.utils import simplejson
-from google.appengine.ext import db
+
 
 class MainPage(webapp.RequestHandler):
   def get(self):
@@ -27,13 +28,21 @@ class FoodUpdater(webapp.RequestHandler):
         self.response.out.write(template.render(path, template_values))
         
     def post(self):
-        if(cgi.escape(self.request.get('action')) == 'add'):
+        action = cgi.escape(self.request.get('action'))
+        
+        if action == 'add':
             fooditem = FoodItem()
             fooditem.name = cgi.escape(self.request.get('fooditem_name'))
             fooditem.kcals = int(cgi.escape(self.request.get('fooditem_kcals')))
             fooditem.put()
         
-        # Implement delete
+        elif action == 'delete':
+            key_name = self.request.get('fooditemkey')
+            if len(key_name) == 0: 
+                return;
+                
+            fooditem = db.get(db.Key(key_name))
+            fooditem.delete()
         
         self.redirect('/foodupdater')
         
