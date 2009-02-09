@@ -37,6 +37,7 @@
         this.route; // GPolyLine, will contain the route
         this.routeLength = 0; // In meters
         this.geocoder = new GClientGeocoder();		
+
         this.map = new GMap2($('map'));
         this.map.addControl(new GLargeMapControl());
         this.map.addControl(new GMapTypeControl());
@@ -84,9 +85,28 @@
 		    this.updateDistance();
 		    this.updateCalories();
 		    this.updateFoodStats();
+		    this.updateUndoButton();
 	      }
 	    }
 	
+        // Remove the last drawn vertex in the route 
+	    this.revertRoute = function(numberOfVertices) {
+            // Since GPolyLine.deleteVertex() has some weird restrictions, we'll just redraw the whole route
+            var vertices = new Array();
+
+            for(i = 0; i < this.route.getVertexCount(); i ++) {
+                vertices.push(this.route.getVertex(i));
+            } 
+            
+            vertices.pop();
+            
+            this.clearRoute();
+            
+            for(j = 0; j < vertices.length; j ++)
+                this.expandRoute(vertices[j]);
+    	}
+	
+	    // Update the distance indicator
 	    this.updateDistance = function() {
 	      if(this.routeLength == 0)
 		    $('distance').innerHTML = "0 km.";
@@ -98,6 +118,7 @@
 	      }
 	    }
 	
+	    // Update the table with food statistics
 	    this.updateFoodStats = function() {
 	      var calories = this.computeCalories();
 	      {% for fooditem in fooditems %}
@@ -106,11 +127,13 @@
 	      {% endfor %}
 	    }
 	
+	    // Update the calories indicator
 	    this.updateCalories = function() {
 	      var calories = this.computeCalories();
 	      $('kcal').innerHTML = calories + " kCal.";
 	    }
 	
+	    // Compute nr of calories by route length and weight
 	    this.computeCalories = function() {
 	      var weight = ($('weight').value && $('weight').value != '0') ? $('weight').value : 0;
           var length = Math.round(this.routeLength);
@@ -119,7 +142,18 @@
 	      return Math.round(kcal);
 	    }
 	
-	    this.saveRoute = function() {
+	    // Enable/disable the Undo button
+    	this.updateUndoButton = function() {
+	        if(this.route.getVertexCount() == 0) {
+	            Form.Element.disable($('undobutton'));
+	            return;
+	        }
+            
+            Form.Element.enable($('undobutton'));
+	    }
+	
+	    // Save a route asynchronously  
+    	this.saveRoute = function() {
 	      var routename = $('routename').value;
 	      
 	      if(!routename || routename.length == 0) {
@@ -136,6 +170,7 @@
 		
 		    var jsonifiedRoute = latLngArray.toJSON();
 		
+		    // Call server
 		    new Ajax.Request('/routemanager', {
 		      method: 'post',
 		      parameters: {route: jsonifiedRoute, name: routename, action: 'save'},
@@ -153,6 +188,7 @@
 	      } 
 	    }
         
+        // Process the result of the loadRoute call. Clear existing route and draw loaded one. 
 	    this.processLoadedRoute = function(transport, json) {
 	      var response = null;
 	      
@@ -171,6 +207,7 @@
 	      $('routeresult').innerHTML = "Successfully loaded route '" + response.routename + "'";
 	    }
 	
+	    // Load a route asynchronously
 	    this.loadRoute = function() {
           routeselector = $('existingroutes');
           if(routeselector.selectedIndex == 0)
@@ -185,6 +222,7 @@
 		    }); 
 	    }
 	
+	    // Populate a dropdown box with existing route names
         this.loadExistingRouteNames = function() {
             new Ajax.Request('/routemanager', {
 		      method: 'get',
@@ -204,6 +242,7 @@
 		    });
         }
         
+        // Remove route from map, reset all counters
 	    this.clearRoute = function() {
 	      this.route = undefined;
 	      this.routeLength = 0;
@@ -228,7 +267,9 @@
 	  <div id="map" style="width: 800px; height: 500px"></div>
 	</div>
 	
-	<div id="loadsavecontainer" style="width: 198px; float:right">
+	<div id="actioncontainer" style="width: 198px; float:right">
+	  <input type="button" value="Undo" onclick="runnerUp.revertRoute(1)" id="undobutton" disabled/>
+	  <br>
 	  <input type="button" value="Clear route" onclick="runnerUp.clearRoute()"/>
 	  <br>
 	  <input type="button" value="Save route" onclick="runnerUp.saveRoute()"/>
@@ -263,7 +304,8 @@
 		  </td>
 		</tr>
 		{% endfor %}
-	</table>
+		<tr><td style="text-align:right"><a href="/foodupdater">Add a food item</a></td></tr>
+	  </table>
 	</div>
   
   </div>
