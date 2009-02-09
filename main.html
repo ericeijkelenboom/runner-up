@@ -18,197 +18,201 @@
 	<script type="text/javascript">
     //<![CDATA[
   
-	function RunnerUp() {    
-	  this.mainAddress = "Mosevej 34, Ballerup, Denmark"; 
-	  this.route; // GPolyLine, will contain the route
-	  this.routeLength = 0; // In meters
-	  this.geocoder = new GClientGeocoder();		
-	  this.map = new GMap2($('map'));
-	  this.map.addControl(new GLargeMapControl());
-	  this.map.addControl(new GMapTypeControl());
-	  this.map.addControl(new google.maps.LocalSearch(), new GControlPosition(G_ANCHOR_BOTTOM_RIGHT, new GSize(10,20)));
-	  this.map.setMapType(G_HYBRID_MAP);
-
-	  GEvent.bind(this.map, "click", this, this.mapClicked);
-	  this.navigateToAddress(this.mainAddress);
-	}
-	
-	// Set center of map to specified address
-	RunnerUp.prototype.navigateToAddress = function(address) {
-	  if (this.geocoder) {
-		var tmp = this.map;
-		this.geocoder.getLatLng(address, function(point) {
-			if (!point) {
-			  alert(address + " not found");
-			} else {
-			  tmp.setCenter(point, 15);
-			}
-		  }
-		);
-	  }
-	}
-	
-	RunnerUp.prototype.mapClicked = function(overlay, latLng) {
-	  this.expandRoute(latLng);
-	}
-	
-	// Given a LatLng, create the corresponding piece of the route
-	RunnerUp.prototype.expandRoute= function(latLng) {     
-	  if (latLng) {
-		if(!this.route) {
-		  // Route start
-		  this.route = new GPolyline([latLng], "#0000ff", 3);
-		  this.map.addOverlay(new GMarker(latLng));
-		  this.map.addOverlay(this.route);
-		} else {
-		  // Update route length
-		  var previousVertex = this.route.getVertex(this.route.getVertexCount() - 1);
-		  this.routeLength += latLng.distanceFrom(previousVertex);
-		  
-		  // Add new vertex to route
-		  this.route.insertVertex(this.route.getVertexCount(), latLng);
-		}
-		
-		this.updateDistance();
-		this.updateCalories();
-		this.updateFoodStats();
-	  }
-	}
-	
-	RunnerUp.prototype.updateDistance = function() {
-	  if(this.routeLength == 0)
-		$('distance').innerHTML = "0 km.";
-	  else {
-		var lengthInKm = ((this.routeLength / 1000) + "").match(/(\d+\.\d\d)/);
-		if(lengthInKm && lengthInKm.length > 0) {
-		  $('distance').innerHTML = lengthInKm[0] + " km.";
-		}
-	  }
-	}
-	
-	RunnerUp.prototype.updateFoodStats = function() {
-	  var calories = this.computeCalories();
-	  {% for fooditem in fooditems %}
-		fooditem_{{forloop.counter}} = Math.round((calories / {{fooditem.kcals}}) * 10) / 10;
-		$('nr_of_{{fooditem.name}}').innerHTML = fooditem_{{forloop.counter}};
-	  {% endfor %}
-	}
-	
-	RunnerUp.prototype.updateCalories = function() {
-	  var calories = this.computeCalories();
-	  $('kcal').innerHTML = calories + " kCal.";
-	}
-	
-	RunnerUp.prototype.computeCalories = function() {
-	  var weight = ($('weight').value && $('weight').value != '0') ? $('weight').value : 0;
-      var length = Math.round(this.routeLength);
-	  var km = length/1000;
-	  var kcal = (km * weight);
-	  return Math.round(kcal);
-	}
-	
-	RunnerUp.prototype.saveRoute = function() {
-	  var routename = $('routename').value;
-	  
-	  if(!routename || routename.length == 0) {
-		alert("Please define a name for this route");
-	  } else if(this.routeLength == 0) {
-		alert("Please draw a route first");
-	  } else {
-		// Create array of route vertices
-		var latLngArray = new Array();
-		for(i = 0; i < this.route.getVertexCount(); i++) {
-		  var vertex = this.route.getVertex(i);
-		  latLngArray.push(vertex.toUrlValue());  
-		}
-		
-		var jsonifiedRoute = latLngArray.toJSON();
-		
-		new Ajax.Request('/routemanager', {
-		  method: 'post',
-		  parameters: {route: jsonifiedRoute, name: routename, action: 'save'},
-          parameters: 'route=' + jsonifiedRoute + '&name=' + routename + '&action=save',
-		  onSuccess: function(transport, json) {
-						if(transport.responseText.match('Success')) {
-                            $('routeresult').innerHTML = "Route " + routename + " saved!";
-                            $('existingroutes').insert('<option>' + routename + '</option>').selectedIndex = 0;  
-                        }
-                        else {
-                            $('routeresult').innerHTML = "Error saving route: " + transport.responseText;
-                        }
-					 }
-		});  
-	  } 
-	}
-    
-	
-	RunnerUp.prototype.processLoadedRoute = function(transport, json) {
-	  var response = null;
-	  
-	  try {
-		response = transport.responseText.evalJSON();	  
-	  } catch (e) {
-		$('routeresult').innerHTML = "Error while loading route: " + transport.responseText;
-		return;
-	  }
-      runnerUp.clearRoute();
-	
-	  for(i = 0; i < response.vertices.length; i++) {
-	    runnerUp.expandRoute(new GLatLng(response.vertices[i].lat, response.vertices[i].lng));
-	  }
-	
-	  $('routeresult').innerHTML = "Successfully loaded route '" + response.routename + "'";
-	}
-	
-	RunnerUp.prototype.loadRoute = function() {
-      routeselector = $('existingroutes');
-      if(routeselector.selectedIndex == 0)
-        return;
-        
-	  var routename = routeselector[routeselector.selectedIndex].value;
-
-	  new Ajax.Request('/routemanager', {
-		  method: 'get',
-		  parameters: {action: 'load', routename: routename},
-		  onSuccess: this.processLoadedRoute
-		}); 
-	}
-	
-    loadExistingRouteNames = function() {
-        new Ajax.Request('/routemanager', {
-		  method: 'get',
-		  parameters: {action: 'allnames'},
-		  onSuccess: function(transport, json) {
-                         var response = null; 
-                         try {
-                            response = transport.responseText.evalJSON();	  
-                         } catch (e) {
-                            reponse = 'Error';
-                         }
-                      
-                         for(i = 0; i < response.length; i++) {
-                            $('existingroutes').insert('<option>' + response[i] + '</option>').selectedIndex = 0;                       
-                         }
-                     }
-		});
-    }
-    
-	RunnerUp.prototype.clearRoute = function() {
-	  this.route = undefined;
-	  this.routeLength = 0;
-	  this.map.clearOverlays();
-	  this.updateDistance();
-	  this.updateCalories();
-	  this.updateFoodStats();
-	}
-	 
-	/* Entry point */
 	var runnerUp;
 	function initialize() {
 	  if (GBrowserIsCompatible()) {
 		runnerUp = new RunnerUp();
-		loadExistingRouteNames();
+        
+        GEvent.bind(runnerUp.map, "click", runnerUp, runnerUp.mapClicked);
+        
+        runnerUp.loadExistingRouteNames();
+		runnerUp.navigateToAddress(runnerUp.mainAddress);
 	  }
+	}
+  
+    function RunnerUp() {   
+        /* Properties */ 
+        
+        this.mainAddress = "Mosevej 34, Ballerup, Denmark"; 
+        this.route; // GPolyLine, will contain the route
+        this.routeLength = 0; // In meters
+        this.geocoder = new GClientGeocoder();		
+        this.map = new GMap2($('map'));
+        this.map.addControl(new GLargeMapControl());
+        this.map.addControl(new GMapTypeControl());
+        this.map.addControl(new google.maps.LocalSearch(), new GControlPosition(G_ANCHOR_BOTTOM_RIGHT, new GSize(10,20)));
+        this.map.setMapType(G_HYBRID_MAP);
+
+        /* Functions */
+        
+	    // Set center of map to specified address
+	    this.navigateToAddress = function(address) {
+	      if (this.geocoder) {
+		    var tmp = this.map;
+		    this.geocoder.getLatLng(address, function(point) {
+			    if (!point) {
+			      alert(address + " not found");
+			    } else {
+			      tmp.setCenter(point, 15);
+			    }
+		      }
+		    );
+	      }
+	    }
+	
+	    this.mapClicked = function(overlay, latLng) {
+	      this.expandRoute(latLng);
+	    }
+	
+	    // Given a LatLng, create the corresponding piece of the route
+	    this.expandRoute= function(latLng) {     
+	      if (latLng) {
+		    if(!this.route) {
+		      // Route start
+		      this.route = new GPolyline([latLng], "#0000ff", 3);
+		      this.map.addOverlay(new GMarker(latLng));
+		      this.map.addOverlay(this.route);
+		    } else {
+		      // Update route length
+		      var previousVertex = this.route.getVertex(this.route.getVertexCount() - 1);
+		      this.routeLength += latLng.distanceFrom(previousVertex);
+		      
+		      // Add new vertex to route
+		      this.route.insertVertex(this.route.getVertexCount(), latLng);
+		    }
+		
+		    this.updateDistance();
+		    this.updateCalories();
+		    this.updateFoodStats();
+	      }
+	    }
+	
+	    this.updateDistance = function() {
+	      if(this.routeLength == 0)
+		    $('distance').innerHTML = "0 km.";
+	      else {
+		    var lengthInKm = ((this.routeLength / 1000) + "").match(/(\d+\.\d\d)/);
+		    if(lengthInKm && lengthInKm.length > 0) {
+		      $('distance').innerHTML = lengthInKm[0] + " km.";
+		    }
+	      }
+	    }
+	
+	    this.updateFoodStats = function() {
+	      var calories = this.computeCalories();
+	      {% for fooditem in fooditems %}
+		    fooditem_{{forloop.counter}} = Math.round((calories / {{fooditem.kcals}}) * 10) / 10;
+		    $('nr_of_{{fooditem.name}}').innerHTML = fooditem_{{forloop.counter}};
+	      {% endfor %}
+	    }
+	
+	    this.updateCalories = function() {
+	      var calories = this.computeCalories();
+	      $('kcal').innerHTML = calories + " kCal.";
+	    }
+	
+	    this.computeCalories = function() {
+	      var weight = ($('weight').value && $('weight').value != '0') ? $('weight').value : 0;
+          var length = Math.round(this.routeLength);
+	      var km = length/1000;
+	      var kcal = (km * weight);
+	      return Math.round(kcal);
+	    }
+	
+	    this.saveRoute = function() {
+	      var routename = $('routename').value;
+	      
+	      if(!routename || routename.length == 0) {
+		    alert("Please define a name for this route");
+	      } else if(this.routeLength == 0) {
+		    alert("Please draw a route first");
+	      } else {
+		    // Create array of route vertices
+		    var latLngArray = new Array();
+		    for(i = 0; i < this.route.getVertexCount(); i++) {
+		      var vertex = this.route.getVertex(i);
+		      latLngArray.push(vertex.toUrlValue());  
+		    }
+		
+		    var jsonifiedRoute = latLngArray.toJSON();
+		
+		    new Ajax.Request('/routemanager', {
+		      method: 'post',
+		      parameters: {route: jsonifiedRoute, name: routename, action: 'save'},
+              parameters: 'route=' + jsonifiedRoute + '&name=' + routename + '&action=save',
+		      onSuccess: function(transport, json) {
+			    if(transport.responseText.match('Success')) {
+                    $('routeresult').innerHTML = "Route " + routename + " saved!";
+                    $('existingroutes').insert('<option>' + routename + '</option>').selectedIndex = 0;  
+                }
+                else {
+                    $('routeresult').innerHTML = "Error saving route: " + transport.responseText;
+                }
+		      }
+		    });  
+	      } 
+	    }
+        
+	    this.processLoadedRoute = function(transport, json) {
+	      var response = null;
+	      
+	      try {
+		    response = transport.responseText.evalJSON();	  
+	      } catch (e) {
+		    $('routeresult').innerHTML = "Error while loading route: " + transport.responseText;
+		    return;
+	      }
+          runnerUp.clearRoute();
+	
+	      for(i = 0; i < response.vertices.length; i++) {
+	        runnerUp.expandRoute(new GLatLng(response.vertices[i].lat, response.vertices[i].lng));
+	      }
+	
+	      $('routeresult').innerHTML = "Successfully loaded route '" + response.routename + "'";
+	    }
+	
+	    this.loadRoute = function() {
+          routeselector = $('existingroutes');
+          if(routeselector.selectedIndex == 0)
+            return;
+            
+	      var routename = routeselector[routeselector.selectedIndex].value;
+
+	      new Ajax.Request('/routemanager', {
+		      method: 'get',
+		      parameters: {action: 'load', routename: routename},
+		      onSuccess: this.processLoadedRoute
+		    }); 
+	    }
+	
+        this.loadExistingRouteNames = function() {
+            new Ajax.Request('/routemanager', {
+		      method: 'get',
+		      parameters: {action: 'allnames'},
+		      onSuccess: function(transport, json) {
+                 var response = null; 
+                 try {
+                    response = transport.responseText.evalJSON();	  
+                 } catch (e) {
+                    reponse = 'Error';
+                 }
+              
+                 for(i = 0; i < response.length; i++) {
+                    $('existingroutes').insert('<option>' + response[i] + '</option>').selectedIndex = 0;                       
+                 }
+             }
+		    });
+        }
+        
+	    this.clearRoute = function() {
+	      this.route = undefined;
+	      this.routeLength = 0;
+	      this.map.clearOverlays();
+	      this.updateDistance();
+	      this.updateCalories();
+	      this.updateFoodStats();
+	    }
+	
 	}
     //]]>
     </script>
