@@ -4,7 +4,13 @@
   <head>
     <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
     <title>Runner-UP</title>
-    
+	
+	<style type="text/css">
+		body {
+		    font-family: Arial, Helvetica;
+		}
+	</style>
+
 	<style type="text/css">
 	  @import url("http://www.google.com/uds/css/gsearch.css");
 	  @import url("http://www.google.com/uds/solutions/localsearch/gmlocalsearch.css");
@@ -23,14 +29,14 @@
 	  if (GBrowserIsCompatible()) {
 		runnerUp = new RunnerUp();
         
-        GEvent.bind(runnerUp.map, "click", runnerUp, runnerUp.mapClicked);
+		GEvent.bind(runnerUp.map, "click", runnerUp, runnerUp.mapClicked);
         
-        runnerUp.loadExistingRouteNames();
+		runnerUp.loadExistingRouteNames();
 		runnerUp.navigateToAddress(runnerUp.mainAddress);
 	  }
 	}
   
-    function RunnerUp() {   
+	function RunnerUp() {   
         /* Properties */ 
         
         this.mainAddress = "Mosevej 34, Ballerup, Denmark"; 
@@ -259,42 +265,52 @@
 
   <body onload="initialize()" onunload="GUnload()">
 
-  
-  <div id="maincontainer" style="width:1000px">
+  <div id="maincontainer" style="width:100%">
 	<h3>Route planner</h3>
   
-	<div id="mapcontainer" style="width:800px; float:left">
-	  <div id="map" style="width: 800px; height: 500px"></div>
-	</div>
-	
-	<div id="actioncontainer" style="width: 198px; float:right">
-	  <input type="button" value="Undo" onclick="runnerUp.revertRoute(1)" id="undobutton" disabled/>
-	  <br>
-	  <input type="button" value="Clear route" onclick="runnerUp.clearRoute()"/>
-	  <br>
-	  <input type="button" value="Save route" onclick="runnerUp.saveRoute()"/>
-	  <input id="routename" type="text" size="40">
-	  <br>
-	  <input type="button" value="Load route" onclick="runnerUp.loadRoute()"/>
-      <select id="existingroutes"><option selected="true">-- Select a route --</option></select>
-	  <div id="routeresult" style="position:relative">&nbsp;</div>
-	</div>
-	
-	<div id="statscontainer" style="width:800px; float:left">
-	  <table style="width:100%; border:1px solid black; font-weight:bold">
-		<tr>
-		  <td>Distance: <div id="distance">0 km.</td>
-		  <td>Calories: <div id="kcal" style="float:left">0 kCal.</div></td>
-		  <td style="text-align:right">Weigth (kg): <input id="weight" type="text" size="3" value="70" onchange="runnerUp.updateCalories(); runnerUp.updateFoodStats()"/></td>
-		</tr>
-	  </table>
-	</div>
-  
-	<br>
+	<table style="width:100%">
+	<tr>
+		<td style="width:800px">
+			<div id="map" style="width: 800px; height: 500px"></div>
+		</td>
+		<td style="vertical-align:top">
+			<div id="actioncontainer" style="width: 100%">
+				  <table style="width:100%">
+					<tr>
+						<td colspan="2"><input type="button" value="Undo last line" onclick="runnerUp.revertRoute(1)" id="undobutton" disabled/></td>
+					</tr>
+					<tr>
+						<td colspan="2"><input type="button" value="Clear entire route" onclick="runnerUp.clearRoute()"/></td>
+					</tr>
+					<tr>
+						<td style="width:25%"><input type="button" value="Save route" onclick="runnerUp.saveRoute()"/></td><td><input id="routename" type="text" size="10"></td>
+					</tr>
+					<tr>
+						<td style="width:25%"><input type="button" value="Load route" onclick="runnerUp.loadRoute()"/></td><td><select id="existingroutes"><option selected="true">-- Select a route --</option></select></td>
+					</tr>
+					<tr>
+						<td colspan="2"><div id="routeresult" style="position:relative">&nbsp;</div></td>
+					</tr>
+				  </table>
+			</div>
+		</td>
+	</tr>
+	</table>
 	
 	<div id="foods_container" style="width:800px; float:left">
-	  <h3>Food statistics</h3>
-	  <table style="width:100%">
+	  <h3>Route statistics</h3>
+	  
+	  <div style="width:100%; height:30px; font-weight:bold">
+		<div style="float:left">Distance:</div><div style="float:left; padding-left:10px">0 km</div>
+		<div style="float:left; padding-left:50px">Calories:</div><div style="float:left; padding-left:10px">0 kCal</div>
+		<div style="float:right">
+			<div style="float:left;">Weight (kg):</div><div style="float:left; padding-left:10px"><input id="weight" type="text" size="3" value="70" onchange="runnerUp.updateCalories(); runnerUp.updateFoodStats()"/></div>
+		</div>
+	  </div>
+	  
+	  <div> 
+		<h3>Food statistics</h3>
+		<table style="width:100%">
 		{% for fooditem in fooditems %}
 		<tr>
 		  <td>
@@ -305,7 +321,8 @@
 		</tr>
 		{% endfor %}
 		<tr><td style="text-align:right"><a href="/foodupdater">Add a food item</a></td></tr>
-	  </table>
+		</table>
+	  </div>
 	</div>
   
   </div>
