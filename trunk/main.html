@@ -171,7 +171,7 @@
 		    var latLngArray = new Array();
 		    for(i = 0; i < this.route.getVertexCount(); i++) {
 		      var vertex = this.route.getVertex(i);
-		      latLngArray.push(vertex.toUrlValue());  
+		      latLngArray.push(vertex.toUrlValue(15));  
 		    }
 		
 		    var jsonifiedRoute = latLngArray.toJSON();
